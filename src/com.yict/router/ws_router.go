@@ -20,7 +20,7 @@ func (_ *wsRouter) createHandle(art *mux.Router) {
 	art.HandleFunc("/ws", bulidWsClient)
 }
 
-// serveWs handles websocket requests from the peer.
+// bulidWsClient handles websocket requests from the peer.
 func bulidWsClient(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	log.Println(conn.LocalAddr(), conn.RemoteAddr())

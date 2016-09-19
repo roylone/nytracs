@@ -3,8 +3,6 @@
 // license that can be found in the LICENSE file.
 package websocket
 
-import ()
-
 // hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type WsADT struct {

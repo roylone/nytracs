@@ -7,9 +7,9 @@ import (
 )
 
 //NewMsg notice it when other process send msg
-func NewMsg(clients string, msg string) (ok bool) {
-	if clnt := GetWsADT().QueryClient(""); clnt != nil {
-		clnt.OutMsg <- []byte(msg)
+func NewMsg(flag string, msg string) (ok bool) {
+	if clt := GetWsADT().QueryClient(flag); clt != nil {
+		clt.OutMsg <- []byte(msg)
 		ok = true
 	} else {
 		ok = false
