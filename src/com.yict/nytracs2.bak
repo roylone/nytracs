@@ -1,0 +1,117 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	_ "github.com/go-sql-driver/mysql" //_ "github.com/lib/pq" (For PostgreSQL)
+	"github.com/gorilla/context"
+	"github.com/gorilla/mux"
+	"github.com/pjebs/restgate"
+	"github.com/urfave/negroni"
+
+	"net/http"
+)
+
+//func main() {
+//	router := mux.NewRouter()
+//
+//	router.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+//		fmt.Fprintf(w, "好好学习天天向上")
+//	})
+//
+//	router.HandleFunc("/hello/{category}", say)
+//	web := negroni.Classic()
+//	web.UseHandler(router)
+//	if err := http.ListenAndServe(":8080", web); err != nil {
+//		log.Fatal(err)
+//	}
+//}
+
+func init() {
+	app := negroni.New()
+	//These middleware is common to all routes
+	app.Use(negroni.NewRecovery())
+	app.Use(negroni.NewLogger())
+	app.UseHandler(NewRoute())
+	http.Handle("/", context.ClearHandler(app))
+	//	if err := http.ListenAndServe(":8080", app); err != nil {
+	//		log.Fatal(err)
+	//	}
+	app.Run(":8080")
+}
+
+func NewRoute() *mux.Router {
+
+	//Create subrouters
+	restRouter := mux.NewRouter()
+	restRouter.HandleFunc("/api", Handler1()) //Rest API Endpoint handler
+
+	rest2Router := mux.NewRouter()
+	rest2Router.HandleFunc("/api2", Handler2()) //A second Rest API Endpoint handler
+
+	//Create negroni instance to handle different middlewares for different api routes
+	negRest := negroni.New()
+	negRest.Use(restgate.New("X-Auth-Key", "X-Auth-Secret", restgate.Static, restgate.Config{Context: ctx, Key: []string{"12345"}, Secret: []string{"secret"}}))
+	negRest.UseHandler(restRouter)
+
+	negRest2 := negroni.New()
+	negRest2.Use(restgate.New("X-Auth-Key", "X-Auth-Secret", restgate.Database, restgate.Config{DB: SqlDB(), TableName: "users", Key: []string{"keys"}, Secret: []string{"secrets"}}))
+	negRest2.UseHandler(rest2Router)
+
+	//Create main router
+	mainRouter := mux.NewRouter().StrictSlash(true)
+	mainRouter.HandleFunc("/", MainHandler()) //Main Handler -> Use your own
+	mainRouter.Handle("/api", negRest)        //This endpoint is protected by RestGate via hardcoded KEYs
+	mainRouter.Handle("/api2", negRest2)      //This endpoint is protected by RestGate via KEYs stored in a database
+
+	return mainRouter
+
+}
+func mainHandler(w http.ResponseWriter, req *http.Request) {
+	//	vars := mux.Vars(req)
+	//	category := vars["category"]
+	fmt.Fprintln(w, "hi golang")
+}
+
+//Optional Context - If not required, remove 'Context: C' or alternatively pass nil (see above)
+//NB: Endpoint handler can determine the key used to authenticate via: context.Get(r, 0).(string)
+func ctx(r *http.Request, authenticatedKey string) {
+	context.Set(r, 0, authenticatedKey) // Read http://www.gorillatoolkit.org/pkg/context about setting arbitary context key
+}
+
+//Optional Database
+func SqlDB() *sql.DB {
+	DB_TYPE := "mysql"
+	DB_HOST := "localhost"
+	DB_PORT := "3306"
+	DB_USER := "root"
+	DB_NAME := "test"
+	DB_PASSWORD := "root"
+	openString := DB_USER + ":" + DB_PASSWORD + "@tcp(" + DB_HOST + ":" + DB_PORT + ")/" + DB_NAME
+
+	db, err := sql.Open(DB_TYPE, openString)
+	if err != nil {
+		return nil
+	}
+	return db
+	// defer db.Close()
+}
+
+//Endpoint Handlers
+func Handler1() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "/api -> Handler1 - protected by RestGate (Static Mode)\n")
+	}
+}
+
+func Handler2() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "/api2 -> Handler2 - protected by RestGate (database mode)\n")
+	}
+}
+
+func MainHandler() func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "/ -> MainHandler - not protected by RestGate\n")
+	}
+}
