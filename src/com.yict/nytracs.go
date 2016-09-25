@@ -26,11 +26,6 @@ func main() {
 	}).HandlerFuncWithNext)
 
 	web := negroni.Classic()
-	//	web := negroni.New()
-	//
-	//	web.Use(negroni.NewRecovery())
-	//	web.Use(negronilogrus.NewMiddleware())
-	//	web.Use(negroni.NewStatic(http.Dir("public")))
 
 	web.Use(gzip.Gzip(gzip.DefaultCompression))
 	web.Use(secureMiddleware)
